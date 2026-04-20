@@ -1,0 +1,13 @@
+services:
+  reddit-scanner:
+    build: .
+    container_name: reddit-manufacturing-scanner
+    volumes:
+      - "./data:/app/data"
+    restart: unless-stopped
+    environment:
+      - DB_PATH=/app/data/reddit_posts.db
+      - PYTHONUNBUFFERED=1
+
+volumes:
+  reddit-data:
