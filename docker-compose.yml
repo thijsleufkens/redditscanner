@@ -4,9 +4,12 @@ services:
     container_name: reddit-manufacturing-scanner
     volumes:
       - "./data:/app/data"
+      # Heartbeat-bestand naar de map die het Strongbad-dashboard uitleest (VPS-pad).
+      - "/opt/strongbad/dashboard/heartbeats:/app/heartbeats"
     restart: unless-stopped
     environment:
       - DB_PATH=/app/data/reddit_posts.db
+      - HEARTBEAT_FILE=/app/heartbeats/reddit-scout
       - PYTHONUNBUFFERED=1
 
 volumes:
