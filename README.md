@@ -38,6 +38,7 @@ All settings are environment variables in `docker-compose.yml`:
 |---|---|---|
 | `SUBREDDITS` | manufacturing, ERP, PowerBI, smallbusiness, analytics, supplychain, leanmanufacturing | Comma-separated list of subreddits |
 | `USER_AGENT` | a generic one | Reddit asks for a descriptive User-Agent with a way to contact you. Set your own. |
+| `MAX_RETRIES` | 2 | How often to retry a subreddit after a rate limit |
 | `DB_PATH` | `/app/data/reddit_posts.db` | Where the database lives inside the container |
 | `HEARTBEAT_FILE` | (off) | If set, this file is rewritten after every successful fetch, so a monitoring tool can notice when the scanner stops |
 
@@ -86,9 +87,11 @@ stopped rating the cards. The scanner still runs as a searchable archive.
 - Reddit's RSS feed only returns the latest ±25 posts per subreddit. For a busy
   subreddit, four hours can be too long and you'll miss posts. Fetch more often
   if that matters to you.
-- Reddit rate-limits anonymous feed requests fairly aggressively and then
-  answers with HTTP 429 and an empty feed. The scanner logs that as a warning;
-  if you see it often, set a clear `USER_AGENT` and fetch less often.
+- Reddit rate-limits anonymous feed requests per IP address, sometimes to one
+  request a minute, and then answers with HTTP 429 and an empty feed. The scanner
+  waits until the limit resets and retries (`MAX_RETRIES`, default 2), so a cycle
+  over seven subreddits can take about seven minutes. That's fine every four
+  hours.
 - You're storing other people's posts, including their usernames. Fine for
   personal research; check [Reddit's terms](https://redditinc.com/policies) before
   you do more with it.

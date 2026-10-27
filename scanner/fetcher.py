@@ -20,15 +20,32 @@ SUBREDDITS = [s.strip() for s in os.getenv("SUBREDDITS", ",".join(DEFAULT_SUBRED
 # Reddit asks for a descriptive User-Agent with a way to contact you. Set your own.
 USER_AGENT = os.getenv("USER_AGENT", "Reddit-RSS-Scraper/1.0 (personal research; set USER_AGENT to add your contact)")
 
+# How often to retry a subreddit after a rate limit (HTTP 429)
+MAX_RETRIES = int(os.getenv("MAX_RETRIES", "2"))
+
 def fetch_subreddit_rss(subreddit):
     url = f"https://www.reddit.com/r/{subreddit}/.rss"
     logging.info(f"Fetching feed for r/{subreddit}...")
     
     # Reddit RSS returns XML, feedparser handles it
     feed = feedparser.parse(url, agent=USER_AGENT)
-    
+
     # Reddit answers a rate limit with HTTP 429 and an empty feed, which
     # feedparser doesn't flag as an error. Check the status ourselves.
+    # Anonymous requests can be limited to one per minute per IP address, so
+    # wait until the window resets (x-ratelimit-reset, in seconds) and retry.
+    for _ in range(MAX_RETRIES):
+        if feed.get('status') != 429:
+            break
+        try:
+            wait = float(feed.get('headers', {}).get('x-ratelimit-reset', 60))
+        except ValueError:
+            wait = 60
+        wait = min(wait, 120) + 2
+        logging.info(f"r/{subreddit}: rate limited, retrying in {wait:.0f}s")
+        time.sleep(wait)
+        feed = feedparser.parse(url, agent=USER_AGENT)
+
     status = feed.get('status')
     if status is not None and status != 200:
         logging.warning(f"r/{subreddit}: HTTP {status}, no posts fetched")
