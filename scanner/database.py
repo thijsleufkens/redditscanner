@@ -56,7 +56,9 @@ def insert_posts(posts):
         ))
     
     conn.commit()
-    count = cursor.rowcount
+    # total_changes counts every inserted row; cursor.rowcount would only
+    # reflect the last statement (0 when the last post was a duplicate).
+    count = conn.total_changes
     conn.close()
     return count
 

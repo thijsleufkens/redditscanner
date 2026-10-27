@@ -1,9 +1,10 @@
 import feedparser
+import os
 import time
 import logging
 from datetime import datetime
 
-SUBREDDITS = [
+DEFAULT_SUBREDDITS = [
     "manufacturing",
     "ERP",
     "PowerBI",
@@ -13,7 +14,11 @@ SUBREDDITS = [
     "leanmanufacturing"
 ]
 
-USER_AGENT = "Reddit-RSS-Scraper/1.0 (for LinkedIn Content Ideas; contact: thijs@example.com)"
+# Comma-separated list, e.g. SUBREDDITS="manufacturing,ERP"
+SUBREDDITS = [s.strip() for s in os.getenv("SUBREDDITS", ",".join(DEFAULT_SUBREDDITS)).split(",") if s.strip()]
+
+# Reddit asks for a descriptive User-Agent with a way to contact you. Set your own.
+USER_AGENT = os.getenv("USER_AGENT", "Reddit-RSS-Scraper/1.0 (personal research; set USER_AGENT to add your contact)")
 
 def fetch_subreddit_rss(subreddit):
     url = f"https://www.reddit.com/r/{subreddit}/.rss"
@@ -22,6 +27,13 @@ def fetch_subreddit_rss(subreddit):
     # Reddit RSS returns XML, feedparser handles it
     feed = feedparser.parse(url, agent=USER_AGENT)
     
+    # Reddit answers a rate limit with HTTP 429 and an empty feed, which
+    # feedparser doesn't flag as an error. Check the status ourselves.
+    status = feed.get('status')
+    if status is not None and status != 200:
+        logging.warning(f"r/{subreddit}: HTTP {status}, no posts fetched")
+        return []
+
     if feed.bozo:
         logging.error(f"Error parsing feed for {subreddit}: {feed.bozo_exception}")
         return []

@@ -15,17 +15,20 @@ logging.basicConfig(
     handlers=[logging.StreamHandler(sys.stdout)]
 )
 
-# Heartbeat-bestand voor het Strongbad-dashboard: de mtime = laatste geslaagde
-# fetch-cyclus (Reddit bereikt). Leeg laten/ontbreken -> dashboard toont 'stale'.
-HEARTBEAT_FILE = os.environ.get("HEARTBEAT_FILE", "/app/heartbeats/reddit-scout")
+# Optional heartbeat file: its mtime marks the last successful fetch cycle, so a
+# monitoring tool can alert when Reddit hasn't been reached for a while.
+# Unset = no heartbeat.
+HEARTBEAT_FILE = os.environ.get("HEARTBEAT_FILE", "")
 
 def write_heartbeat():
+    if not HEARTBEAT_FILE:
+        return
     try:
         os.makedirs(os.path.dirname(HEARTBEAT_FILE), exist_ok=True)
         with open(HEARTBEAT_FILE, "w") as fh:
             fh.write(datetime.now(timezone.utc).isoformat())
     except Exception as e:
-        logging.warning(f"Kon heartbeat niet schrijven: {e}")
+        logging.warning(f"Could not write heartbeat: {e}")
 
 def job():
     logging.info("Starting fetch cycle...")
@@ -50,7 +53,7 @@ def print_stats():
         print(f"{row['subreddit']:<20} | {row['count']:<10} | {row['last_fetch']}")
 
 def main():
-    parser = argparse.ArgumentParser(description="Reddit RSS Scraper for Manufacturing")
+    parser = argparse.ArgumentParser(description="Reddit RSS scraper")
     parser.add_argument("--stats", action="store_true", help="Print database statistics and exit")
     parser.add_argument("--now", action="store_true", help="Run the scraper once and exit")
     args = parser.parse_args()
